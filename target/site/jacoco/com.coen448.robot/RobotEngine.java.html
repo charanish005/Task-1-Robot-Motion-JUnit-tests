@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RobotEngine.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">demo</a> &gt; <a href="index.source.html" class="el_package">com.coen448.robot</a> &gt; <span class="el_source">RobotEngine.java</span></div><h1>RobotEngine.java</h1><pre class="source lang-java linenums">package com.coen448.robot;
+
+import java.util.ArrayList;
+import java.util.List;
+
+<span class="fc" id="L6">public class RobotEngine {</span>
+
+<span class="fc" id="L8">    private int[][] floor = new int[0][0];</span>
+
+    // x = column, y = row
+<span class="fc" id="L11">    private int x = 0;</span>
+<span class="fc" id="L12">    private int y = 0;</span>
+
+<span class="fc" id="L14">    private Direction direction = Direction.NORTH;</span>
+<span class="fc" id="L15">    private PenState pen = PenState.UP;</span>
+
+    // Store normalized commands that change state (plus I/M/U/D/L/R)
+<span class="fc" id="L18">    private final List&lt;String&gt; history = new ArrayList&lt;&gt;();</span>
+
+    // ----------------------------
+    // Core robot operations
+    // ----------------------------
+
+    public void initialize(int n) {
+<span class="fc bfc" id="L25" title="All 2 branches covered.">        if (n &lt;= 0)</span>
+<span class="fc" id="L26">            throw new IllegalArgumentException(&quot;Size must be &gt; 0&quot;);</span>
+
+<span class="fc" id="L28">        floor = new int[n][n];</span>
+<span class="fc" id="L29">        x = 0;</span>
+<span class="fc" id="L30">        y = 0;</span>
+<span class="fc" id="L31">        direction = Direction.NORTH;</span>
+<span class="fc" id="L32">        pen = PenState.UP;</span>
+
+<span class="fc" id="L34">        history.add(&quot;I &quot; + n);</span>
+<span class="fc" id="L35">    }</span>
+
+    public void penUp() {
+<span class="fc" id="L38">        pen = PenState.UP;</span>
+<span class="fc" id="L39">        history.add(&quot;U&quot;);</span>
+<span class="fc" id="L40">    }</span>
+
+    public void penDown() {
+<span class="fc" id="L43">        pen = PenState.DOWN;</span>
+<span class="fc" id="L44">        history.add(&quot;D&quot;);</span>
+<span class="fc" id="L45">    }</span>
+
+    public void turnLeft() {
+<span class="fc" id="L48">        direction = direction.turnLeft();</span>
+<span class="fc" id="L49">        history.add(&quot;L&quot;);</span>
+<span class="fc" id="L50">    }</span>
+
+    public void turnRight() {
+<span class="fc" id="L53">        direction = direction.turnRight();</span>
+<span class="fc" id="L54">        history.add(&quot;R&quot;);</span>
+<span class="fc" id="L55">    }</span>
+
+    // IMPORTANT: NORTH increases y (matches sample output: (0,0) -&gt; (0,4) after M
+    // 4)
+    public void move(int steps) {
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        if (steps &lt; 0)</span>
+<span class="fc" id="L61">            throw new IllegalArgumentException(&quot;Steps must be &gt;= 0&quot;);</span>
+<span class="fc" id="L62">        ensureInitialized();</span>
+
+<span class="fc" id="L64">        history.add(&quot;M &quot; + steps);</span>
+
+<span class="fc bfc" id="L66" title="All 2 branches covered.">        for (int i = 0; i &lt; steps; i++) {</span>
+<span class="fc" id="L67">            int nextX = x;</span>
+<span class="fc" id="L68">            int nextY = y;</span>
+
+<span class="pc bpc" id="L70" title="1 of 5 branches missed.">            switch (direction) {</span>
+<span class="fc" id="L71">                case NORTH -&gt; nextY = y + 1;</span>
+<span class="fc" id="L72">                case SOUTH -&gt; nextY = y - 1;</span>
+<span class="fc" id="L73">                case EAST -&gt; nextX = x + 1;</span>
+<span class="fc" id="L74">                case WEST -&gt; nextX = x - 1;</span>
+            }
+
+<span class="fc bfc" id="L77" title="All 2 branches covered.">            if (!inBounds(nextX, nextY))</span>
+<span class="fc" id="L78">                break;</span>
+
+<span class="fc bfc" id="L80" title="All 2 branches covered.">            if (pen == PenState.DOWN)</span>
+<span class="fc" id="L81">                floor[y][x] = 1;</span>
+
+<span class="fc" id="L83">            x = nextX;</span>
+<span class="fc" id="L84">            y = nextY;</span>
+
+<span class="fc bfc" id="L86" title="All 2 branches covered.">            if (pen == PenState.DOWN)</span>
+<span class="fc" id="L87">                floor[y][x] = 1;</span>
+        }
+<span class="fc" id="L89">    }</span>
+
+    public String statusString() {
+<span class="fc" id="L92">        return &quot;Position: &quot; + x + &quot;, &quot; + y +</span>
+<span class="fc" id="L93">                &quot; - Pen: &quot; + pen.name().toLowerCase() +</span>
+<span class="fc" id="L94">                &quot; - Facing: &quot; + direction.name().toLowerCase();</span>
+    }
+
+    public String renderFloorWithIndices() {
+<span class="fc" id="L98">        ensureInitialized();</span>
+<span class="fc" id="L99">        int n = floor.length;</span>
+
+<span class="fc" id="L101">        StringBuilder sb = new StringBuilder();</span>
+
+<span class="fc" id="L103">        sb.append(&quot;  &quot;);</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        for (int c = 0; c &lt; n; c++)</span>
+<span class="fc" id="L105">            sb.append(c).append(&quot; &quot;);</span>
+<span class="fc" id="L106">        sb.append(&quot;\n&quot;);</span>
+
+<span class="fc bfc" id="L108" title="All 2 branches covered.">        for (int r = 0; r &lt; n; r++) {</span>
+<span class="fc" id="L109">            sb.append(r).append(&quot; &quot;);</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">            for (int c = 0; c &lt; n; c++) {</span>
+<span class="fc bfc" id="L111" title="All 2 branches covered.">                sb.append(floor[r][c] == 1 ? &quot;* &quot; : &quot;  &quot;);</span>
+            }
+<span class="fc" id="L113">            sb.append(&quot;\n&quot;);</span>
+        }
+
+<span class="fc" id="L116">        return sb.toString();</span>
+    }
+
+    public void replayHistory() {
+<span class="fc" id="L120">        RobotEngine fresh = new RobotEngine();</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">        for (String cmd : history) {</span>
+<span class="fc" id="L122">            fresh.applyCommandNoRecord(cmd);</span>
+<span class="fc" id="L123">        }</span>
+<span class="fc" id="L124">        this.floor = fresh.floor;</span>
+<span class="fc" id="L125">        this.x = fresh.x;</span>
+<span class="fc" id="L126">        this.y = fresh.y;</span>
+<span class="fc" id="L127">        this.direction = fresh.direction;</span>
+<span class="fc" id="L128">        this.pen = fresh.pen;</span>
+<span class="fc" id="L129">    }</span>
+
+    // ----------------------------
+    // CLI command execution
+    // ----------------------------
+
+    public String executeCommand(String input) {
+<span class="pc bpc" id="L136" title="1 of 2 branches missed.">        String raw = input == null ? &quot;&quot; : input.trim();</span>
+<span class="fc bfc" id="L137" title="All 2 branches covered.">        if (raw.isEmpty())</span>
+<span class="fc" id="L138">            return &quot;&quot;;</span>
+
+<span class="fc" id="L140">        String upper = raw.toUpperCase();</span>
+
+<span class="fc bfc" id="L142" title="All 2 branches covered.">        if (upper.equals(&quot;U&quot;)) {</span>
+<span class="fc" id="L143">            penUp();</span>
+<span class="fc" id="L144">            return &quot;&quot;;</span>
+        }
+<span class="fc bfc" id="L146" title="All 2 branches covered.">        if (upper.equals(&quot;D&quot;)) {</span>
+<span class="fc" id="L147">            penDown();</span>
+<span class="fc" id="L148">            return &quot;&quot;;</span>
+        }
+<span class="pc bpc" id="L150" title="1 of 2 branches missed.">        if (upper.equals(&quot;L&quot;)) {</span>
+<span class="nc" id="L151">            turnLeft();</span>
+<span class="nc" id="L152">            return &quot;&quot;;</span>
+        }
+<span class="fc bfc" id="L154" title="All 2 branches covered.">        if (upper.equals(&quot;R&quot;)) {</span>
+<span class="fc" id="L155">            turnRight();</span>
+<span class="fc" id="L156">            return &quot;&quot;;</span>
+        }
+
+<span class="fc bfc" id="L159" title="All 2 branches covered.">        if (upper.equals(&quot;C&quot;))</span>
+<span class="fc" id="L160">            return statusString();</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">        if (upper.equals(&quot;P&quot;))</span>
+<span class="fc" id="L162">            return renderFloorWithIndices();</span>
+
+<span class="fc bfc" id="L164" title="All 2 branches covered.">        if (upper.equals(&quot;H&quot;)) {</span>
+<span class="fc" id="L165">            replayHistory();</span>
+<span class="fc" id="L166">            return &quot;Replayed history.&quot;;</span>
+        }
+
+<span class="fc bfc" id="L169" title="All 2 branches covered.">        if (upper.equals(&quot;Q&quot;)) {</span>
+<span class="fc" id="L170">            return &quot;Bye!&quot;;</span>
+        }
+
+<span class="fc bfc" id="L173" title="All 2 branches covered.">        if (upper.startsWith(&quot;I&quot;)) {</span>
+<span class="fc" id="L174">            String rest = raw.substring(1).trim();</span>
+<span class="fc bfc" id="L175" title="All 2 branches covered.">            if (rest.isEmpty())</span>
+<span class="fc" id="L176">                throw new IllegalArgumentException(&quot;Missing size after I&quot;);</span>
+<span class="fc" id="L177">            int n = Integer.parseInt(rest);</span>
+<span class="fc" id="L178">            initialize(n);</span>
+<span class="fc" id="L179">            return &quot;Initialized floor size &quot; + n;</span>
+        }
+
+<span class="fc bfc" id="L182" title="All 2 branches covered.">        if (upper.startsWith(&quot;M&quot;)) {</span>
+<span class="fc" id="L183">            String rest = raw.substring(1).trim();</span>
+<span class="fc bfc" id="L184" title="All 2 branches covered.">            if (rest.isEmpty())</span>
+<span class="fc" id="L185">                throw new IllegalArgumentException(&quot;Missing steps after M&quot;);</span>
+<span class="fc" id="L186">            int s = Integer.parseInt(rest);</span>
+<span class="fc" id="L187">            move(s);</span>
+<span class="fc" id="L188">            return &quot;&quot;;</span>
+        }
+
+<span class="fc" id="L191">        throw new IllegalArgumentException(&quot;Unknown command: &quot; + input);</span>
+    }
+
+    // ----------------------------
+    // Internal replay methods
+    // ----------------------------
+
+    private void applyCommandNoRecord(String cmd) {
+<span class="pc bpc" id="L199" title="1 of 2 branches missed.">        String raw = cmd == null ? &quot;&quot; : cmd.trim();</span>
+<span class="pc bpc" id="L200" title="1 of 2 branches missed.">        if (raw.isEmpty())</span>
+<span class="nc" id="L201">            return;</span>
+
+<span class="fc" id="L203">        String upper = raw.toUpperCase();</span>
+
+<span class="pc bpc" id="L205" title="1 of 2 branches missed.">        if (upper.equals(&quot;U&quot;)) {</span>
+<span class="nc" id="L206">            pen = PenState.UP;</span>
+<span class="nc" id="L207">            return;</span>
+        }
+<span class="fc bfc" id="L209" title="All 2 branches covered.">        if (upper.equals(&quot;D&quot;)) {</span>
+<span class="fc" id="L210">            pen = PenState.DOWN;</span>
+<span class="fc" id="L211">            return;</span>
+        }
+<span class="pc bpc" id="L213" title="1 of 2 branches missed.">        if (upper.equals(&quot;L&quot;)) {</span>
+<span class="nc" id="L214">            direction = direction.turnLeft();</span>
+<span class="nc" id="L215">            return;</span>
+        }
+<span class="fc bfc" id="L217" title="All 2 branches covered.">        if (upper.equals(&quot;R&quot;)) {</span>
+<span class="fc" id="L218">            direction = direction.turnRight();</span>
+<span class="fc" id="L219">            return;</span>
+        }
+
+<span class="fc bfc" id="L222" title="All 2 branches covered.">        if (upper.startsWith(&quot;I&quot;)) {</span>
+<span class="fc" id="L223">            String rest = raw.substring(1).trim();</span>
+<span class="fc" id="L224">            int n = Integer.parseInt(rest);</span>
+<span class="pc bpc" id="L225" title="1 of 2 branches missed.">            if (n &lt;= 0)</span>
+<span class="nc" id="L226">                throw new IllegalArgumentException(&quot;Size must be &gt; 0&quot;);</span>
+<span class="fc" id="L227">            floor = new int[n][n];</span>
+<span class="fc" id="L228">            x = 0;</span>
+<span class="fc" id="L229">            y = 0;</span>
+<span class="fc" id="L230">            direction = Direction.NORTH;</span>
+<span class="fc" id="L231">            pen = PenState.UP;</span>
+<span class="fc" id="L232">            return;</span>
+        }
+
+<span class="pc bpc" id="L235" title="1 of 2 branches missed.">        if (upper.startsWith(&quot;M&quot;)) {</span>
+<span class="fc" id="L236">            String rest = raw.substring(1).trim();</span>
+<span class="fc" id="L237">            int steps = Integer.parseInt(rest);</span>
+<span class="fc" id="L238">            internalMoveNoRecord(steps);</span>
+        }
+<span class="fc" id="L240">    }</span>
+
+    private void internalMoveNoRecord(int steps) {
+<span class="pc bpc" id="L243" title="1 of 2 branches missed.">        if (steps &lt; 0)</span>
+<span class="nc" id="L244">            throw new IllegalArgumentException(&quot;Steps must be &gt;= 0&quot;);</span>
+<span class="fc" id="L245">        ensureInitialized();</span>
+
+<span class="fc bfc" id="L247" title="All 2 branches covered.">        for (int i = 0; i &lt; steps; i++) {</span>
+<span class="fc" id="L248">            int nextX = x;</span>
+<span class="fc" id="L249">            int nextY = y;</span>
+
+<span class="pc bpc" id="L251" title="4 of 5 branches missed.">            switch (direction) {</span>
+<span class="nc" id="L252">                case NORTH -&gt; nextY = y + 1;</span>
+<span class="nc" id="L253">                case SOUTH -&gt; nextY = y - 1;</span>
+<span class="fc" id="L254">                case EAST -&gt; nextX = x + 1;</span>
+<span class="nc" id="L255">                case WEST -&gt; nextX = x - 1;</span>
+            }
+
+<span class="pc bpc" id="L258" title="1 of 2 branches missed.">            if (!inBounds(nextX, nextY))</span>
+<span class="nc" id="L259">                break;</span>
+
+<span class="pc bpc" id="L261" title="1 of 2 branches missed.">            if (pen == PenState.DOWN)</span>
+<span class="fc" id="L262">                floor[y][x] = 1;</span>
+
+<span class="fc" id="L264">            x = nextX;</span>
+<span class="fc" id="L265">            y = nextY;</span>
+
+<span class="pc bpc" id="L267" title="1 of 2 branches missed.">            if (pen == PenState.DOWN)</span>
+<span class="fc" id="L268">                floor[y][x] = 1;</span>
+        }
+<span class="fc" id="L270">    }</span>
+
+    // ----------------------------
+    // Helpers + getters
+    // ----------------------------
+
+    private void ensureInitialized() {
+<span class="fc bfc" id="L277" title="All 2 branches covered.">        if (floor.length == 0)</span>
+<span class="fc" id="L278">            throw new IllegalStateException(&quot;Floor not initialized&quot;);</span>
+<span class="fc" id="L279">    }</span>
+
+    private boolean inBounds(int px, int py) {
+<span class="fc" id="L282">        int n = floor.length;</span>
+<span class="pc bpc" id="L283" title="1 of 8 branches missed.">        return px &gt;= 0 &amp;&amp; px &lt; n &amp;&amp; py &gt;= 0 &amp;&amp; py &lt; n;</span>
+    }
+
+    public int size() {
+<span class="fc" id="L287">        return floor.length;</span>
+    }
+
+    public int getX() {
+<span class="fc" id="L291">        return x;</span>
+    }
+
+    public int getY() {
+<span class="fc" id="L295">        return y;</span>
+    }
+
+    public Direction getDirection() {
+<span class="fc" id="L299">        return direction;</span>
+    }
+
+    public PenState getPen() {
+<span class="fc" id="L303">        return pen;</span>
+    }
+
+    public int getCell(int row, int col) {
+<span class="fc" id="L307">        return floor[row][col];</span>
+    }
+
+    public List&lt;String&gt; getHistory() {
+<span class="nc" id="L311">        return List.copyOf(history);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
