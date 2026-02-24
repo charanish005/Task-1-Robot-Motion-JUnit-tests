@@ -6,22 +6,31 @@ import java.util.List;
 public class RobotEngine {
 
     private int[][] floor = new int[0][0];
+
+    // x = column, y = row
     private int x = 0;
     private int y = 0;
+
     private Direction direction = Direction.NORTH;
     private PenState pen = PenState.UP;
 
+    // Store normalized commands that change state (plus I/M/U/D/L/R)
     private final List<String> history = new ArrayList<>();
 
+    // ----------------------------
+    // Core robot operations
+    // ----------------------------
+
     public void initialize(int n) {
-        if (n <= 0) {
-            throw new IllegalArgumentException("n must be > 0");
-        }
+        if (n <= 0)
+            throw new IllegalArgumentException("Size must be > 0");
+
         floor = new int[n][n];
         x = 0;
         y = 0;
         direction = Direction.NORTH;
         pen = PenState.UP;
+
         history.add("I " + n);
     }
 
@@ -45,11 +54,13 @@ public class RobotEngine {
         history.add("R");
     }
 
+    // IMPORTANT: NORTH increases y (matches sample output: (0,0) -> (0,4) after M
+    // 4)
     public void move(int steps) {
-        if (steps < 0) {
-            throw new IllegalArgumentException("steps must be >= 0");
-        }
+        if (steps < 0)
+            throw new IllegalArgumentException("Steps must be >= 0");
         ensureInitialized();
+
         history.add("M " + steps);
 
         for (int i = 0; i < steps; i++) {
@@ -57,26 +68,23 @@ public class RobotEngine {
             int nextY = y;
 
             switch (direction) {
-                case NORTH -> nextY = y - 1;
-                case SOUTH -> nextY = y + 1;
+                case NORTH -> nextY = y + 1;
+                case SOUTH -> nextY = y - 1;
                 case EAST -> nextX = x + 1;
                 case WEST -> nextX = x - 1;
             }
 
-            if (!inBounds(nextX, nextY)) {
+            if (!inBounds(nextX, nextY))
                 break;
-            }
 
-            if (pen == PenState.DOWN) {
+            if (pen == PenState.DOWN)
                 floor[y][x] = 1;
-            }
 
             x = nextX;
             y = nextY;
 
-            if (pen == PenState.DOWN) {
+            if (pen == PenState.DOWN)
                 floor[y][x] = 1;
-            }
         }
     }
 
@@ -89,12 +97,12 @@ public class RobotEngine {
     public String renderFloorWithIndices() {
         ensureInitialized();
         int n = floor.length;
+
         StringBuilder sb = new StringBuilder();
 
         sb.append("  ");
-        for (int c = 0; c < n; c++) {
+        for (int c = 0; c < n; c++)
             sb.append(c).append(" ");
-        }
         sb.append("\n");
 
         for (int r = 0; r < n; r++) {
@@ -104,13 +112,14 @@ public class RobotEngine {
             }
             sb.append("\n");
         }
+
         return sb.toString();
     }
 
     public void replayHistory() {
         RobotEngine fresh = new RobotEngine();
         for (String cmd : history) {
-            fresh.executeCommandInternal(cmd);
+            fresh.applyCommandNoRecord(cmd);
         }
         this.floor = fresh.floor;
         this.x = fresh.x;
@@ -119,102 +128,154 @@ public class RobotEngine {
         this.pen = fresh.pen;
     }
 
-    public String executeCommand(String input) {
-        String line = input.trim().toUpperCase();
+    // ----------------------------
+    // CLI command execution
+    // ----------------------------
 
-        if (line.equals("U")) {
+    public String executeCommand(String input) {
+        String raw = input == null ? "" : input.trim();
+        if (raw.isEmpty())
+            return "";
+
+        String upper = raw.toUpperCase();
+
+        if (upper.equals("U")) {
             penUp();
             return "";
         }
-        if (line.equals("D")) {
+        if (upper.equals("D")) {
             penDown();
             return "";
         }
-        if (line.equals("L")) {
+        if (upper.equals("L")) {
             turnLeft();
             return "";
         }
-        if (line.equals("R")) {
+        if (upper.equals("R")) {
             turnRight();
             return "";
         }
-        if (line.equals("C")) {
-            history.add("C");
+
+        if (upper.equals("C"))
             return statusString();
-        }
-        if (line.equals("P")) {
-            history.add("P");
+        if (upper.equals("P"))
             return renderFloorWithIndices();
-        }
-        if (line.equals("H")) {
+
+        if (upper.equals("H")) {
             replayHistory();
             return "Replayed history.";
         }
 
-        if (line.startsWith("I")) {
-            int n = Integer.parseInt(line.substring(1).trim());
+        if (upper.equals("Q")) {
+            return "Bye!";
+        }
+
+        if (upper.startsWith("I")) {
+            String rest = raw.substring(1).trim();
+            if (rest.isEmpty())
+                throw new IllegalArgumentException("Missing size after I");
+            int n = Integer.parseInt(rest);
             initialize(n);
             return "Initialized floor size " + n;
         }
 
-        if (line.startsWith("M")) {
-            int s = Integer.parseInt(line.substring(1).trim());
+        if (upper.startsWith("M")) {
+            String rest = raw.substring(1).trim();
+            if (rest.isEmpty())
+                throw new IllegalArgumentException("Missing steps after M");
+            int s = Integer.parseInt(rest);
             move(s);
             return "";
         }
 
-        throw new IllegalArgumentException("Unknown command");
+        throw new IllegalArgumentException("Unknown command: " + input);
     }
 
-    private void executeCommandInternal(String input) {
-        String line = input.trim().toUpperCase();
+    // ----------------------------
+    // Internal replay methods
+    // ----------------------------
 
-        if (line.equals("U"))
+    private void applyCommandNoRecord(String cmd) {
+        String raw = cmd == null ? "" : cmd.trim();
+        if (raw.isEmpty())
+            return;
+
+        String upper = raw.toUpperCase();
+
+        if (upper.equals("U")) {
             pen = PenState.UP;
-        else if (line.equals("D"))
+            return;
+        }
+        if (upper.equals("D")) {
             pen = PenState.DOWN;
-        else if (line.equals("L"))
+            return;
+        }
+        if (upper.equals("L")) {
             direction = direction.turnLeft();
-        else if (line.equals("R"))
+            return;
+        }
+        if (upper.equals("R")) {
             direction = direction.turnRight();
-        else if (line.startsWith("I")) {
-            int n = Integer.parseInt(line.substring(1).trim());
+            return;
+        }
+
+        if (upper.startsWith("I")) {
+            String rest = raw.substring(1).trim();
+            int n = Integer.parseInt(rest);
+            if (n <= 0)
+                throw new IllegalArgumentException("Size must be > 0");
             floor = new int[n][n];
             x = 0;
             y = 0;
             direction = Direction.NORTH;
             pen = PenState.UP;
-        } else if (line.startsWith("M")) {
-            int s = Integer.parseInt(line.substring(1).trim());
-            internalMove(s);
+            return;
+        }
+
+        if (upper.startsWith("M")) {
+            String rest = raw.substring(1).trim();
+            int steps = Integer.parseInt(rest);
+            internalMoveNoRecord(steps);
         }
     }
 
-    private void internalMove(int steps) {
+    private void internalMoveNoRecord(int steps) {
+        if (steps < 0)
+            throw new IllegalArgumentException("Steps must be >= 0");
         ensureInitialized();
+
         for (int i = 0; i < steps; i++) {
-            int nextX = x, nextY = y;
+            int nextX = x;
+            int nextY = y;
+
             switch (direction) {
                 case NORTH -> nextY = y + 1;
                 case SOUTH -> nextY = y - 1;
                 case EAST -> nextX = x + 1;
                 case WEST -> nextX = x - 1;
             }
+
             if (!inBounds(nextX, nextY))
                 break;
+
             if (pen == PenState.DOWN)
                 floor[y][x] = 1;
+
             x = nextX;
             y = nextY;
+
             if (pen == PenState.DOWN)
                 floor[y][x] = 1;
         }
     }
 
+    // ----------------------------
+    // Helpers + getters
+    // ----------------------------
+
     private void ensureInitialized() {
-        if (floor.length == 0) {
+        if (floor.length == 0)
             throw new IllegalStateException("Floor not initialized");
-        }
     }
 
     private boolean inBounds(int px, int py) {
@@ -242,7 +303,11 @@ public class RobotEngine {
         return pen;
     }
 
-    public int getCell(int r, int c) {
-        return floor[r][c];
+    public int getCell(int row, int col) {
+        return floor[row][col];
+    }
+
+    public List<String> getHistory() {
+        return List.copyOf(history);
     }
 }
