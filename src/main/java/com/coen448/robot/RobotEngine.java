@@ -57,8 +57,8 @@ public class RobotEngine {
             int nextY = y;
 
             switch (direction) {
-                case NORTH -> nextY = y - 1;
-                case SOUTH -> nextY = y + 1;
+                case NORTH -> nextY = y + 1;  // Fix: NORTH increments y (was y - 1)
+                case SOUTH -> nextY = y - 1;  // Fix: SOUTH decrements y (was y + 1)
                 case EAST -> nextX = x + 1;
                 case WEST -> nextX = x - 1;
             }
